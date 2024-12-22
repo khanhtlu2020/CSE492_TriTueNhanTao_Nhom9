@@ -23,20 +23,18 @@ int X[8] = {-2, -2, -1, -1, 1, 1, 2, 2};
 int Y[8] = {-1, 1, -2, 2, -2, 2, -1, 1};
 int n;
 int targetX, targetY;
+bool foundDFS = false; 
 
-void xuat(const vector<pair<int, int>>& path) {
+void xuat(const vector<vector<int>>& path) {
+    cout << "Cac buoc di la: \n";
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
-            cout << " " << A[i][j];
+            cout << " " << path[i][j];
         }
         cout << endl;
     }
-    cout << "\nCac buoc di la:\n";
-    for (const auto& p : path) {
-        cout << "(" << p.first << ", " << p.second << ") -> ";
-    }
-    cout << "End" << endl;
 }
+
 
 int heuristic(int x, int y) {
     int dx = abs(x - targetX);
@@ -44,59 +42,73 @@ int heuristic(int x, int y) {
     return max((dx + 1) / 2, (dy + 1) / 2);
 }
 
-void DFS(int x, int y, int step, vector<pair<int, int>>& path) {
-    A[x][y] = step;
-    path.push_back({x, y});
+void DFS(int x, int y, int step, vector<vector<int>>& path) {
+    path[x][y] = step;
 
     if (step == n * n) {
         xuat(path);
-        exit(0); 
+        foundDFS = true; 
+        return;
     }
 
     for (int i = 0; i < 8; i++) {
         int u = x + X[i];
         int v = y + Y[i];
 
-        if (u >= 0 && u < n && v >= 0 && v < n && A[u][v] == 0) {
+        if (u >= 0 && u < n && v >= 0 && v < n && path[u][v] == 0) {
             DFS(u, v, step + 1, path);
+            if (foundDFS) return; 
         }
     }
 
-    A[x][y] = 0; // Backtrack
-    path.pop_back();
+    path[x][y] = 0; // Backtrack
 }
 
 void BFS(int startX, int startY) {
-    queue<State> q;
-    q.push({startX, startY, 1, {{startX, startY}}, 0}); 
-    A[startX][startY] = 1;
+    struct Node {
+        int x, y, step;
+        int path[MAX][MAX] = {0};
+    };
+
+    queue<Node> q;
+
+    Node start = {startX, startY, 1};
+    memset(start.path, 0, sizeof(start.path));
+    start.path[startX][startY] = 1;
+
+    q.push(start);
 
     while (!q.empty()) {
-        State current = q.front();
+        Node current = q.front();
         q.pop();
 
         if (current.step == n * n) {
-            xuat(current.path);
+            vector<vector<int>> path(n, vector<int>(n, 0));
+            for (int i = 0; i < n; i++) {
+                for (int j = 0; j < n; j++) {
+                    path[i][j] = current.path[i][j];
+                }
+            }
+            xuat(path);
             exit(0);
         }
 
         for (int i = 0; i < 8; i++) {
             int u = current.x + X[i];
             int v = current.y + Y[i];
-
-            if (u >= 0 && u < n && v >= 0 && v < n && A[u][v] == 0) {
-                A[u][v] = current.step + 1;
-                vector<pair<int, int>> newPath = current.path;
-                newPath.push_back({u, v});
-                q.push({u, v, current.step + 1, newPath, 0}); 
+            if (u >= 0 && u < n && v >= 0 && v < n && current.path[u][v] == 0) {
+                Node next = current;
+                next.x = u;
+                next.y = v;
+                next.step = current.step + 1;
+                next.path[u][v] = next.step;
+                q.push(next);
             }
         }
-        A[current.x][current.y] = 0;
     }
 
-    cout << "Khong tim thay duong di." << endl;
+    cout << "Khong tim thay duong di (BFS)." << endl;
 }
-
 
 void AStar(int startX, int startY) {
     priority_queue<State, vector<State>, greater<State>> pq;
@@ -108,7 +120,11 @@ void AStar(int startX, int startY) {
         pq.pop();
 
         if (current.step == n * n) {
-            xuat(current.path);
+            vector<vector<int>> path(n, vector<int>(n, 0));
+            for (const auto& p : current.path) {
+                path[p.first][p.second] = current.step;
+            }
+            xuat(path);
             exit(0);
         }
 
@@ -131,7 +147,7 @@ void AStar(int startX, int startY) {
 }
 
 int main() {
-    cout << "Nhap n: ";
+    cout << "Nhap kich thuoc ban co: ";
     cin >> n;
     int a, b;
     cout << "Nhap vi tri ban dau (x y): \n";
@@ -151,9 +167,12 @@ int main() {
     int choice;
     cin >> choice;
 
+    vector<vector<int>> path(n, vector<int>(n, 0));
     if (choice == 1) {
-        vector<pair<int, int>> path;
         DFS(a, b, 1, path);
+        if (!foundDFS) {
+            cout << "Khong tim thay duong di (DFS)." << endl;
+        }
     } else if (choice == 2) {
         BFS(a, b);
     } else if (choice == 3) {
